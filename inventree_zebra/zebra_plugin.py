@@ -139,7 +139,7 @@ class ZebraLabelPlugin(LabelPrintingMixin, SettingsMixin, InvenTreePlugin):
                 mysocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 mysocket.settimeout(5)
                 mysocket.connect((ip_address, port))
-                data = li.dumpZPL()
+                data = li
                 mysocket.send(data.encode())
                 mysocket.close()
                 self.preview_result = None
