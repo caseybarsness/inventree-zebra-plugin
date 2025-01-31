@@ -123,7 +123,7 @@ class ZebraLabelPlugin(LabelPrintingMixin, SettingsMixin, InvenTreePlugin):
 
             # Create the zpl data
             li = ""
-            li += "D" + darkness + "\n"
+            li += "D" + str(darkness) + "\n"
             li += raw_zpl
         
         if (connection == 'local'):
