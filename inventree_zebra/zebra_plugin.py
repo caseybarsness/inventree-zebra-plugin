@@ -70,20 +70,14 @@ class ZebraLabelPlugin(LabelPrintingMixin, SettingsMixin, InvenTreePlugin, Sched
         },
         'DARKNESS': {
             'name': _('Darkness'),
-            'description': _('Darkness of the print out. 0-30'),
-            'validator': [int, MinValueValidator(0), MaxValueValidator(30)],
-            'default': 20,
-        },
-        'DPMM': {
-            'name': _('Dots per mm'),
-            'description': _('The resolution of the printer'),
-            'choices': [(8, '8 dots per mm'), (12, '12 dots per mm'), (24, '24 dots per mm')],
+            'description': _('Darkness of the print out. 0-15'),
+            'validator': [int, MinValueValidator(0), MaxValueValidator(15)],
             'default': 8,
         },
         'PRINTER_INIT': {
             'name': _('Printer Init'),
-            'description': _('Additional ZPL commands sent to the printer. Use carefully!'),
-            'default': '~TA000~JSN^LT0^MNW^MTT^PMN^PON^PR2,2^LRN',
+            'description': _('Additional commands sent to the printer. Use carefully!'),
+            'default': '~',
         },
         'ENABLE_PRINTER_INFO': {
             'name': 'Get Printer Info',
@@ -139,9 +133,6 @@ class ZebraLabelPlugin(LabelPrintingMixin, SettingsMixin, InvenTreePlugin, Sched
         connection = self.get_setting('CONNECTION')
         interface = self.get_setting('LOCAL_IF')
         port = int(self.get_setting('PORT'))
-        threshold = self.get_setting('THRESHOLD')
-        dpmm = int(self.get_setting('DPMM'))
-        printer_init = self.get_setting('PRINTER_INIT')
 
         # Extract width (x) and height (y) information.
         width = kwargs['width']
@@ -167,40 +158,13 @@ class ZebraLabelPlugin(LabelPrintingMixin, SettingsMixin, InvenTreePlugin, Sched
 
         # From here we need to distinguish between html templates and ZPL templates
         if zpl_template:
-            raw_zpl = kwargs['context']['template'].render_as_string(kwargs['item_instance'], None).replace('\n', '')
+            raw_zpl = kwargs['context']['template'].render_as_string(kwargs['item_instance'], None).replace("<br \\>", "\n")
 
             # Create the zpl data
-            li = zpl.Label(height, width, dpmm)
-            li.set_darkness(darkness)
-            li.labelhome(0, 0)
-            li.zpl_raw(printer_init)
-            li.origin(0, 0)
-            li.zpl_raw(raw_zpl)
-            li.endorigin()
-        else:
-            # Set the threshold
-            label_image = kwargs['png_file']
-            fn = lambda x: 255 if x > threshold else 0
-            label_image = label_image.convert('L').point(fn, mode='1')
-
-            # Uncomment this if you need the intermediate png file for debugging.
-            # label_image.save('/home/user/label.png')
-
-            # Convert image to Zebra zpl
-            li = zpl.Label(height, width, dpmm)
-            li.set_darkness(darkness)
-            li.labelhome(0, 0)
-            li.zpl_raw(printer_init)
-            li.origin(0, 0)
-            li.write_graphic(label_image, width)
-            li.endorigin()
-
-        # Uncomment this if you need the intermediate zpl file for debugging.
-        # datafile=open('/home/user/label.txt','w')
-        # datafile.write(li.dumpZPL())
-        # datafile.close()
-
-        # Send the label to the printer
+            li = ""
+            li += "D" + darkness + "\n"
+            li += raw_zpl
+        
         if (connection == 'local'):
             try:
                 printer = open(interface, 'w')
@@ -220,22 +184,6 @@ class ZebraLabelPlugin(LabelPrintingMixin, SettingsMixin, InvenTreePlugin, Sched
                 self.preview_result = None
             except Exception as error:
                 raise ConnectionError('Error connecting to network printer: ' + str(error))
-        elif (connection == 'preview'):
-            width_inch = round(width / 25.4, 2)
-            height_inch = round(height / 25.4, 2)
-            url = f'https://api.labelary.com/v1/printers/{dpmm}dpmm/labels/{width_inch}x{height_inch}/0'
-            header = {'Content-type': 'application/x-www-form-urlencoded', 'Accept': 'application/pdf'}
-            response = Wrappers.post_request(self, li.dumpZPL(), url, header)
-            try:
-                status_code = response.status_code
-            except Exception:
-                status_code = 0
-            if status_code == 200:
-                self.preview_result = ContentFile(response.content, 'label.pdf')
-            elif status_code == 0:
-                self.preview_result = ContentFile(f'Request error: {response}', 'label.html')
-            else:
-                self.preview_result = ContentFile(f'Labalary API Error: {response.content}', 'label.html')
         else:
             print('Unknown Interface')
 
