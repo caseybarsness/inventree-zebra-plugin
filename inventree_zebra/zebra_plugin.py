@@ -129,7 +129,7 @@ class ZebraLabelPlugin(LabelPrintingMixin, SettingsMixin, InvenTreePlugin):
         if (connection == 'local'):
             try:
                 printer = open(interface, 'w')
-                printer.write(li.dumpZPL())
+                printer.write(li)
                 printer.close()
                 self.preview_result = None
             except Exception as error:
